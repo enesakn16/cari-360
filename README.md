@@ -26,6 +26,16 @@ python main.py
 
 Windows'ta doğrudan `run_demo.bat` dosyası da kullanılabilir.
 
+## Offline cari yaşlandırma raporu
+
+Sentetik açık hareketleri vade gününe göre sabit yaşlandırma aralıklarında özetlemek için:
+
+```bash
+python aging_report.py
+```
+
+Rapor; gecikmiş 1-7, 8-30, 31-60 ve 61+ gün gruplarını, bugün vadeli belgeleri ve yaklaşan vade aralıklarını ayrı gösterir. Tamamlanmış veya vadesiz hareketler hesaba katılmaz. Hesaplamalar `Decimal` ile yapılır; ağ erişimi, veri tabanı bağlantısı veya dosya dışa aktarımı kullanılmaz.
+
 ## Test
 
 ```bash
