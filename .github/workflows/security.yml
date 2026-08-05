@@ -5,11 +5,13 @@ permissions:
 jobs:
   isolation:
     runs-on: ubuntu-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install pytest
+      - run: python -m pip install -r requirements.txt pytest
       - run: python -m compileall -q main.py demo_data.py aging_report.py
       - run: pytest -q
