@@ -4,7 +4,7 @@ import sys
 from decimal import Decimal
 from typing import Iterable, Sequence
 
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication,
@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from aging_report import build_aging_report
 from demo_data import CashAccount, Customer, Supplier, Transaction, build_demo_data
 
 APP_TITLE = "Cari 360 — Offline Demo"
@@ -146,7 +147,6 @@ class Cari360Window(QMainWindow):
         side_layout = QVBoxLayout(sidebar)
         side_layout.setContentsMargins(18, 24, 18, 20)
         side_layout.setSpacing(14)
-
         logo = QLabel("CARI 360")
         logo.setObjectName("logo")
         tagline = QLabel("Finans ve Cari Yönetimi")
@@ -156,14 +156,12 @@ class Cari360Window(QMainWindow):
         side_layout.addWidget(logo)
         side_layout.addWidget(tagline)
         side_layout.addWidget(badge)
-
         self.menu = QListWidget()
         self.menu.setObjectName("menu")
         self.menu.setSpacing(5)
         for label in ["Genel Bakış", "Tedarikçiler", "Müşteriler", "Cari Hareketler", "Kasa ve Banka", "Raporlar"]:
             QListWidgetItem(label, self.menu)
         side_layout.addWidget(self.menu, 1)
-
         privacy = QLabel("✓ Üretim veritabanı yok\n✓ Şube bilgisi yok\n✓ Ağ erişimi yok\n✓ Salt okunur")
         privacy.setObjectName("privacy")
         side_layout.addWidget(privacy)
@@ -173,7 +171,6 @@ class Cari360Window(QMainWindow):
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
-
         topbar = QFrame()
         topbar.setObjectName("topbar")
         top_layout = QHBoxLayout(topbar)
@@ -193,18 +190,9 @@ class Cari360Window(QMainWindow):
         content_layout.addWidget(topbar)
 
         self.stack = QStackedWidget()
-        self.pages = [
-            self.dashboard_page(),
-            self.suppliers_page(),
-            self.customers_page(),
-            self.transactions_page(),
-            self.finance_page(),
-            self.reports_page(),
-        ]
-        for page in self.pages:
+        for page in [self.dashboard_page(), self.suppliers_page(), self.customers_page(), self.transactions_page(), self.finance_page(), self.reports_page()]:
             self.stack.addWidget(page)
         content_layout.addWidget(self.stack, 1)
-
         root_layout.addWidget(sidebar)
         root_layout.addWidget(content, 1)
         self.setCentralWidget(root)
@@ -216,19 +204,13 @@ class Cari360Window(QMainWindow):
         suppliers: list[Supplier] = self.data["suppliers"]  # type: ignore[assignment]
         customers: list[Customer] = self.data["customers"]  # type: ignore[assignment]
         accounts: list[CashAccount] = self.data["cash_accounts"]  # type: ignore[assignment]
-        supplier_debt = sum((row.balance for row in suppliers), Decimal("0"))
-        customer_receivable = sum((row.balance for row in customers), Decimal("0"))
-        liquid = sum((row.balance for row in accounts), Decimal("0"))
-        overdue = sum((row.overdue for row in suppliers), Decimal("0"))
-
         cards = QHBoxLayout()
         cards.setSpacing(14)
-        cards.addWidget(MetricCard("Tedarikçi Borcu", money(supplier_debt), "5 sentetik cari", "#DC2626"))
-        cards.addWidget(MetricCard("Müşteri Alacağı", money(customer_receivable), "5 sentetik cari", "#2563EB"))
-        cards.addWidget(MetricCard("Likit Varlık", money(liquid), "4 demo hesap", "#059669"))
-        cards.addWidget(MetricCard("Gecikmiş Tutar", money(overdue), "2 örnek kayıt", "#D97706"))
+        cards.addWidget(MetricCard("Tedarikçi Borcu", money(sum((x.balance for x in suppliers), Decimal("0"))), "5 sentetik cari", "#DC2626"))
+        cards.addWidget(MetricCard("Müşteri Alacağı", money(sum((x.balance for x in customers), Decimal("0"))), "5 sentetik cari", "#2563EB"))
+        cards.addWidget(MetricCard("Likit Varlık", money(sum((x.balance for x in accounts), Decimal("0"))), "4 demo hesap", "#059669"))
+        cards.addWidget(MetricCard("Gecikmiş Tutar", money(sum((x.overdue for x in suppliers), Decimal("0"))), "2 örnek kayıt", "#D97706"))
         page.layout.addLayout(cards)
-
         chart_box = QFrame()
         chart_box.setObjectName("panel")
         chart_layout = QVBoxLayout(chart_box)
@@ -242,70 +224,57 @@ class Cari360Window(QMainWindow):
     def suppliers_page(self) -> QWidget:
         page = Page("Tedarikçiler", "Gerçek firma veya bakiye içermez")
         table = DataTable(["Cari Kod", "Tedarikçi", "Bakiye", "Gecikmiş", "Yaklaşan Vade"])
-        rows = []
-        for item in self.data["suppliers"]:  # type: ignore[union-attr]
-            rows.append([item.code, item.name, money(item.balance), money(item.overdue), item.next_due.strftime("%d.%m.%Y")])
-        table.set_rows(rows)
-        page.layout.addWidget(table, 1)
-        page.table = table  # type: ignore[attr-defined]
-        return page
+        table.set_rows([[x.code, x.name, money(x.balance), money(x.overdue), x.next_due.strftime("%d.%m.%Y")] for x in self.data["suppliers"]])  # type: ignore[union-attr]
+        return self._attach_table(page, table)
 
     def customers_page(self) -> QWidget:
         page = Page("Müşteriler", "Demo kredi limiti ve cari risk görünümü")
         table = DataTable(["Cari Kod", "Müşteri", "Bakiye", "Kredi Limiti", "Durum"])
-        table.set_rows([[item.code, item.name, money(item.balance), money(item.credit_limit), item.status] for item in self.data["customers"]])  # type: ignore[union-attr]
-        page.layout.addWidget(table, 1)
-        page.table = table  # type: ignore[attr-defined]
-        return page
+        table.set_rows([[x.code, x.name, money(x.balance), money(x.credit_limit), x.status] for x in self.data["customers"]])  # type: ignore[union-attr]
+        return self._attach_table(page, table)
 
     def transactions_page(self) -> QWidget:
         page = Page("Cari Hareketler", "Fatura, satış, tahsilat ve ödeme örnekleri")
         table = DataTable(["Belge", "Cari", "İşlem", "Tutar", "Tarih", "Vade", "Durum"])
-        rows = []
-        for item in self.data["transactions"]:  # type: ignore[union-attr]
-            rows.append([item.document_no, item.party, item.kind, money(item.amount), item.transaction_date.strftime("%d.%m.%Y"), item.due_date.strftime("%d.%m.%Y") if item.due_date else "—", item.status])
+        rows = [[x.document_no, x.party, x.kind, money(x.amount), x.transaction_date.strftime("%d.%m.%Y"), x.due_date.strftime("%d.%m.%Y") if x.due_date else "—", x.status] for x in self.data["transactions"]]  # type: ignore[union-attr]
         table.set_rows(rows)
-        page.layout.addWidget(table, 1)
-        page.table = table  # type: ignore[attr-defined]
-        return page
+        return self._attach_table(page, table)
 
     def finance_page(self) -> QWidget:
         page = Page("Kasa ve Banka", "Yerel olarak üretilmiş temsili hesap bakiyeleri")
         table = DataTable(["Hesap", "Tür", "Bakiye"])
-        table.set_rows([[item.name, item.account_type, money(item.balance)] for item in self.data["cash_accounts"]])  # type: ignore[union-attr]
+        table.set_rows([[x.name, x.account_type, money(x.balance)] for x in self.data["cash_accounts"]])  # type: ignore[union-attr]
+        return self._attach_table(page, table)
+
+    def reports_page(self) -> QWidget:
+        page = Page("Raporlar", "Sentetik verilerden üretilen salt okunur cari yaşlandırma özeti")
+        transactions: list[Transaction] = self.data["transactions"]  # type: ignore[assignment]
+        report_date = self.data["generated_on"]
+        buckets = build_aging_report(transactions, as_of=report_date)  # type: ignore[arg-type]
+        overdue_total = sum((x.amount for x in buckets if x.key.startswith("overdue_")), Decimal("0"))
+        upcoming_total = sum((x.amount for x in buckets if x.key.startswith("due_")), Decimal("0"))
+        cards = QHBoxLayout()
+        cards.addWidget(MetricCard("Toplam Gecikmiş", money(overdue_total), "Açık ve vadeli belgeler", "#DC2626"))
+        cards.addWidget(MetricCard("Yaklaşan Vade", money(upcoming_total), "Bugün ve sonrası", "#D97706"))
+        cards.addWidget(MetricCard("Rapor Tarihi", report_date.strftime("%d.%m.%Y"), "Demo veri üretim tarihi", "#2563EB"))  # type: ignore[union-attr]
+        page.layout.addLayout(cards)
+        table = DataTable(["Vade Aralığı", "Belge Sayısı", "Toplam Tutar"])
+        table.set_rows([[x.label, str(x.document_count), money(x.amount)] for x in buckets])
+        return self._attach_table(page, table)
+
+    @staticmethod
+    def _attach_table(page: Page, table: DataTable) -> Page:
         page.layout.addWidget(table, 1)
         page.table = table  # type: ignore[attr-defined]
         return page
 
-    def reports_page(self) -> QWidget:
-        page = Page("Raporlar", "Public demo sürümünde dışa aktarma ve veri yükleme kapalıdır")
-        for title, description in [
-            ("Cari Yaşlandırma", "Gecikmiş ve yaklaşan örnek vadeleri gruplar."),
-            ("Nakit Akışı", "Sentetik tahsilat ve ödeme hareketlerinden özet üretir."),
-            ("Risk Analizi", "Demo kredi limiti ve bakiye ilişkisini gösterir."),
-            ("Yönetim Özeti", "Temsili KPI ve aylık eğilimleri bir araya getirir."),
-        ]:
-            box = QFrame()
-            box.setObjectName("reportCard")
-            layout = QVBoxLayout(box)
-            heading = QLabel(title)
-            heading.setObjectName("panelTitle")
-            detail = QLabel(description)
-            detail.setObjectName("pageSubtitle")
-            layout.addWidget(heading)
-            layout.addWidget(detail)
-            page.layout.addWidget(box)
-        page.layout.addStretch(1)
-        return page
-
     def filter_current_table(self, text: str) -> None:
-        page = self.stack.currentWidget()
-        table = getattr(page, "table", None)
+        table = getattr(self.stack.currentWidget(), "table", None)
         if not isinstance(table, QTableWidget):
             return
         query = text.strip().casefold()
         for row in range(table.rowCount()):
-            visible = not query or any(query in (table.item(row, column).text().casefold() if table.item(row, column) else "") for column in range(table.columnCount()))
+            visible = not query or any(query in (table.item(row, col).text().casefold() if table.item(row, col) else "") for col in range(table.columnCount()))
             table.setRowHidden(row, not visible)
 
 
@@ -320,7 +289,7 @@ QMainWindow, #content { background: #F4F7FB; }
 #menu::item { color: #CBD5E1; padding: 12px 13px; border-radius: 8px; }
 #menu::item:selected { background: #2563EB; color: #FFFFFF; font-weight: 700; }
 #menu::item:hover:!selected { background: #1F2937; }
-#privacy { color: #93C5FD; background: #172554; border-radius: 9px; padding: 12px; line-height: 1.4; }
+#privacy { color: #93C5FD; background: #172554; border-radius: 9px; padding: 12px; }
 #topbar { background: #FFFFFF; border-bottom: 1px solid #E5E7EB; }
 #state { color: #059669; font-weight: 700; }
 QLineEdit { background: #F8FAFC; border: 1px solid #D7DEE9; border-radius: 8px; padding: 9px 12px; }
@@ -328,7 +297,7 @@ QPushButton { background: #E8EEF8; border: 0; border-radius: 8px; padding: 9px 1
 QPushButton:hover { background: #D8E3F4; }
 #pageTitle { font-size: 26px; font-weight: 800; }
 #pageSubtitle { color: #64748B; font-size: 13px; }
-#metricCard, #panel, #reportCard { background: #FFFFFF; border: 1px solid #E4EAF2; border-radius: 12px; }
+#metricCard, #panel { background: #FFFFFF; border: 1px solid #E4EAF2; border-radius: 12px; }
 #metricTitle { color: #64748B; font-weight: 700; }
 #metricValue { font-size: 24px; font-weight: 800; }
 #metricNote { color: #94A3B8; }
