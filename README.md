@@ -1,20 +1,22 @@
-# Cari 360 — Offline Demo
+# Cari 360 — Offline Finance & Receivables Demo
 
-Cari 360'ın public ve güvenli tanıtım sürümüdür. Uygulama yalnız sentetik veriler kullanır ve gerçek sisteme bağlanabilecek bir veri tabanı istemcisi içermez.
+Cari 360, işletmelerin **cari hesap bakiyelerini, açık hareketlerini ve vade riskini tek ekranda takip etmesini** hedefleyen masaüstü finans/operasyon uygulamasının güvenli public demosudur.
 
-## Güvenlik mimarisi
+Bu repository yalnızca sentetik veri kullanır. Gerçek şirket verisi, üretim veritabanı bağlantısı, API anahtarı veya gizli yapılandırma içermez.
 
-- Supabase, PostgreSQL veya başka bir uzak veri tabanı bağlantısı yoktur.
-- URL, token, API anahtarı, `.env` veya üretim ayarı okunmaz.
-- Şube seçimi ve gerçek şube isimleri bulunmaz.
-- Ağ kütüphanesi kullanılmaz.
-- Kayıt ekleme, silme, güncelleme, içe aktarma ve dışa aktarma yoktur.
-- Bütün cari, bakiye, vade ve satış değerleri `demo_data.py` içinde üretilen sentetik örneklerdir.
-- CI testi yasaklı bağlantı kütüphanelerini ve gizli bilgi işaretlerini tarar.
+## Ne işe yarar?
 
-## Çalıştırma
+- Cari hesap ve bakiye görünümü
+- Açık hareket ve vade takibi
+- Gecikmiş / bugün vadeli / yaklaşan alacakların yaşlandırılması
+- Deterministik offline aging report
+- Finans operasyonlarını hızlı incelemek için masaüstü dashboard
 
-Python 3.12 veya 3.13 gerekir.
+**Kim için?** KOBİ finans ekipleri, muhasebe/operasyon kullanıcıları ve cari risk takibini masaüstünden yapmak isteyen işletmeler.
+
+## Hızlı başlangıç
+
+Python **3.12 veya 3.13** gerekir.
 
 ```bash
 python -m venv .venv
@@ -24,9 +26,11 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
-Windows'ta doğrudan `run_demo.bat` dosyası da kullanılabilir.
+Windows'ta `run_demo.bat` dosyası da kullanılabilir.
 
-## Offline cari yaşlandırma raporu
+## Öne çıkan özellikler
+
+### Offline cari yaşlandırma raporu
 
 Sentetik açık hareketleri vade gününe göre sabit yaşlandırma aralıklarında özetlemek için:
 
@@ -34,13 +38,48 @@ Sentetik açık hareketleri vade gününe göre sabit yaşlandırma aralıkları
 python aging_report.py
 ```
 
-Rapor; gecikmiş 1-7, 8-30, 31-60 ve 61+ gün gruplarını, bugün vadeli belgeleri ve yaklaşan vade aralıklarını ayrı gösterir. Tamamlanmış veya vadesiz hareketler hesaba katılmaz. Hesaplamalar `Decimal` ile yapılır; ağ erişimi, veri tabanı bağlantısı veya dosya dışa aktarımı kullanılmaz.
+Rapor şu grupları ayrı gösterir:
 
-## Test
+- gecikmiş 1–7 gün
+- gecikmiş 8–30 gün
+- gecikmiş 31–60 gün
+- gecikmiş 61+ gün
+- bugün vadeli belgeler
+- yaklaşan vadeler
+
+Tamamlanmış veya vadesiz hareketler hesaba katılmaz. Para hesaplamalarında `Decimal` kullanılır.
+
+## Test ve CI
 
 ```bash
 python -m pip install pytest
 pytest -q
 ```
 
-Bu repo üretim uygulamasının veritabanı katmanını, migration dosyalarını, güncelleme altyapısını veya şirket verilerini içermez.
+GitHub Actions; testleri ve public demo için güvenlik kontrollerini çalıştırır. Son doğrulanmış `main` workflow'u başarıyla tamamlanmıştır.
+
+## Güvenlik modeli
+
+Public demo bilinçli olarak üretim sisteminden izole edilmiştir:
+
+- Supabase, PostgreSQL veya başka bir uzak veritabanı bağlantısı yoktur.
+- URL, token, API anahtarı, `.env` veya üretim ayarı okunmaz.
+- Gerçek şube / müşteri / şirket isimleri bulunmaz.
+- Ağ kütüphanesi kullanılmaz.
+- Kayıt ekleme, silme, güncelleme, import veya export yoktur.
+- Cari, bakiye, vade ve satış değerleri `demo_data.py` içindeki sentetik örneklerden üretilir.
+- CI, yasaklı bağlantı kütüphanelerini ve gizli bilgi işaretlerini tarar.
+
+## Repository yapısı
+
+```text
+main.py            # PyQt masaüstü demo arayüzü
+aging_report.py    # Deterministik vade/aging hesaplama katmanı
+demo_data.py       # Sentetik demo verisi
+tests/             # Headless ve domain testleri
+.github/workflows/ # CI ve güvenlik kontrolleri
+```
+
+## Kapsam
+
+Bu repository üretim uygulamasının veritabanı katmanını, migration dosyalarını, güncelleme altyapısını veya şirket verilerini içermez. Amaç, ürünün finans operasyonu mantığını güvenli ve tekrar üretilebilir bir public demo üzerinden göstermek.
